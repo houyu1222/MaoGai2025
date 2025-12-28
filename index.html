@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>毛概期末复习-全量题库刷题系统</title>
+    <style>
+        :root { --primary: #d32f2f; --bg: #f8f9fa; --card: #ffffff; --correct: #2e7d32; --wrong: #c62828; }
+        body { font-family: 'PingFang SC', system-ui, sans-serif; background: var(--bg); color: #333; line-height: 1.6; margin: 0; padding-bottom: 80px; }
+        .header { background: var(--primary); color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .container { max-width: 850px; margin: 20px auto; padding: 0 15px; }
+        
+        .nav-tools { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+        .btn { padding: 8px 15px; border-radius: 20px; border: 1px solid var(--primary); cursor: pointer; background: white; color: var(--primary); font-weight: bold; transition: 0.2s; }
+        .btn.active { background: var(--primary); color: white; }
+        .btn-random { background: #fbc02d; border-color: #fbc02d; color: #333; }
+
+        .card { background: var(--card); border-radius: 10px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; }
+        .q-text { font-size: 1.1em; font-weight: bold; margin-bottom: 12px; }
+        .opt { padding: 10px 15px; border: 2px solid #eee; border-radius: 6px; margin-bottom: 8px; cursor: pointer; }
+        .opt:hover { background: #fff8f8; }
+        .opt.selected { border-color: var(--primary); }
+        .opt.correct { background: #e8f5e9 !important; border-color: var(--correct) !important; color: var(--correct); font-weight: bold; }
+        .opt.wrong { background: #ffebee !important; border-color: var(--wrong) !important; color: var(--wrong); }
+        
+        .multi-btn { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; width: 100%; cursor: pointer; margin-top: 5px; }
+        .ans-box { margin-top: 10px; padding: 10px; background: #f1f8e9; border-radius: 5px; border-left: 4px solid var(--correct); display: none; }
+        
+        .stats { position: fixed; bottom: 0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1000; }
+        .stat-item { text-align: center; font-weight: bold; }
+        .stat-num { color: var(--primary); display: block; font-size: 1.2em; }
+        
+        .badge { font-size: 0.75em; padding: 2px 6px; border-radius: 4px; color: white; margin-right: 8px; vertical-align: middle; }
+        .bg-s { background: #1976d2; } .bg-m { background: #fb8c00; } .bg-j { background: #7b1fa2; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h3>毛概期末考试全题库 (172题)</h3>
+    <div class="nav-tools">
+        <button class="btn active" id="mode-all" onclick="changeMode('all')">顺序刷题</button>
+        <button class="btn" id="mode-wrong" onclick="changeMode('wrong')">错题本 (<span id="wrong-count">0</span>)</button>
+        <button class="btn btn-random" onclick="shuffleQuestions()">随机打乱题目</button>
+    </div>
+</div>
+
+<div class="container" id="main-list"></div>
+
+<div class="stats">
+    <div class="stat-item">已答 <span class="stat-num" id="stat-total">0</span></div>
+    <div class="stat-item">正确 <span class="stat-num" id="stat-correct">0</span></div>
+    <div class="stat-item">错误 <span class="stat-num" id="stat-error">0</span></div>
+    <div class="stat-item">正确率 <span class="stat-num" id="stat-ratio">0%</span></div>
+</div>
+
+<script>
+// --- 全量数据库内容 ---
+const questions = [
+    // 1-60 单选题 
+    {type:'S', q:"把毛泽东思想确立为党必须长期坚持的指导思想并写入党章。", a:"C", os:["A. 遵义会议","B. 党的六届六中全会","C. 党的七大","D. 党的七届二中全会"]},
+    {type:'S', q:"1938年，毛泽东在六届六中全会上作了《论新阶段》的报告，强调：“没有抽象的马克思主义，只有具体的马克思主义……”", a:"A", os:["A. 毛泽东","B. 任弼时","C. 刘少奇","D. 周恩来"]},
+    {type:'S', q:"新民主主义革命的前途是：", a:"A", os:["A. 社会主义","B. 资本主义"]},
+    {type:'S', q:"中国革命进入新民主主义革命阶段的标志是：", a:"D", os:["A．辛亥革命","B．马克思主义在中国的传播","C．中国共产党的成立","D．五四运动"]},
+    {type:'S', q:"区别新民主主义革命与旧民主主义革命的根本标志是：", a:"B", os:["A．革命指导思想不同","B．革命领导权不同","C．革命前途不同","D．革命对象不同"]},
+    {type:'S', q:"第一次鲜明提出“马克思主义中国化”这个命题的会议是：", a:"C", os:["A. 党的二大","B. 遵义会议","C. 党的六届六中全会","D. 党的七大"]},
+    {type:'S', q:"1927年大革命失败后，毛泽东在八七会议上提出的著名论断是：", a:"A", os:["A. 须知政权是枪杆子中取得的","B. 兵、民是胜利之本","C. 一切反动派都是“纸老虎”","D. 星星之火，可以燎原"]},
+    {type:'S', q:"人民军队的宗旨：", a:"A", os:["A．全心全意为人民服务","B．为人民打仗","C．为党的政治路线服务","D．政治建军"]},
+    {type:'S', q:"中国共产党把毛泽东思想确定为党的指导思想的会议是在：", a:"B", os:["A．遵义会议上","B．党的七大上","C．党的八大上","D．党的十一届六中全会上"]},
+    {type:'S', q:"新民主主义革命的主要内容是：", a:"B", os:["A．武装斗争","B．没收封建地主阶级的土地归农民所有","C．建设农村根据地","D．政权建设"]},
+    {type:'S', q:"新民主主义革命的道路是：", a:"B", os:["A．城市暴动和起义","B．农村包围城市，武装夺取政权","C．经过长期的合法斗争","D．先占城市后取乡村"]},
+    {type:'S', q:"近代中国最基本的国情是：", a:"C", os:["A．殖民地半殖民地社会","B．自给自足的自然经济解体","C．半殖民地半封建社会","D．资本主义得到一定的发展"]},
+    {type:'S', q:"新民主主义革命最基本的动力是：", a:"A", os:["A．无产阶级","B．农民阶级","C．贫农","D．工人和农民"]},
+    {type:'S', q:"中国革命的性质：", a:"C", os:["A. 无产阶级革命","B. 农民阶级革命","C. 资产阶级民主主义革命","D. 旧式资产阶级革命"]},
+    {type:'S', q:"新民主主义国家的国体是：", a:"B", os:["A．无产阶级专政","B．各革命阶级联合专政","C．民主集中制的人民代表大会制度","D．人民民主专政"]},
+    {type:'S', q:"第一代领导集体带领全党全国人民确立了（ ），实现了历史上最深刻伟大的社会变革。", a:"C", os:["A．人民当家做主地位","B．中国特色社会主义道路","C．社会主义基本制度","D．党的指导思想"]},
+    {type:'S', q:"中国解决所有问题的关键是要靠自己的发展，而发展的根本目的是：", a:"D", os:["A．增强综合国力","B．体现社会主义优越性","C．消灭剥削，消除两极分化","D．使人民共享发展成果，实现共同富裕"]},
+    {type:'S', q:"我国社会主义改革是一场新的革命，其性质是：", a:"A", os:["A．社会主义制度的自我完善和发展","B．社会主义基本制度的根本变革","C．建立和完善市场经济体制","D．解放生产力，发展生产力"]},
+    {type:'S', q:"人民代表大会制度是我国的（ ）政治制度。", a: "C", os: ["A．关键","B．核心","C．根本","D．主要"]},
+    {type:'S', q:"提出“没有调查，没有发言权”的论断是在：", a:"A", os:["A．《反对本本主义》","B．《实践论》","C．《农村调查》","D．《湖南农民运动考察报告》"]},
+    {type:'S', q:"中国革命的核心问题（领导权问题）：", a:"C", os:["A. 农民阶级","B. 资产阶级","C. 无产阶级","D. 民族资产阶级"]},
+    {type:'S', q:"新民主主义国家的政体是：", a:"C", os:["A．无产阶级专政","B．各革命阶级联合专政","C．民主集中制的人民代表大会制度","D．人民民主专政"]},
+    {type:'S', q:"建国到社会主义改造基本完成，我国社会的性质是：", a:"D", os:["A．资本主义","B．社会主义","C．民主主义","D．新民主主义社会"]},
+    {type:'S', q:"毛泽东明确提出以苏为鉴，独立自主地探索适合中国情况的道路的著作是：", a:"A", os:["A．《论十大关系》","B．《新民主主义论》","C．《关于正确处理人民内部矛盾的问题》","D．《中国革命和中国共产党》"]},
+    {type:'S', q:"《论十大关系》的报告围绕的基本方针是：", a:"C", os:["A. 独立自主","B. 自力更生","C. 调动一切积极因素，为社会主义事业服务","D. 走中国特色社会主义道路"]},
+    {type:'S', q:"从新中国成立到改造完成这一时期，我国社会的性质是：", a:"B", os:["A．资本主义","B．新民主主义","C．社会主义","D．共产主义"]},
+    {type:'S', q:"党在过渡时期总路线的主体是：", a:"A", os:["A．实现社会主义工业化","B．农业改造","C．手工业改造","D．工商业改造"]},
+    {type:'S', q:"建设中国特色社会主义，总依据是：", a:"B", os:["A．一个中心，两个基本点","B．社会主义初级阶段","C．十二五规划","D．现代化建设目标"]},
+    {type:'S', q:"1956年中共八大提出我们国内的主要矛盾是：", a:"D", os:["A．无产阶级同资产阶级的矛盾","B．两条道路的矛盾","C．先进生产关系与落后生产力矛盾","D．人民日益增长的物质文化需要同落后的社会生产之间的矛盾"]},
+    {type:'S', q:"提出“三个主体，三个补充”思想的领导人是：", a:"B", os:["A．邓子恢","B．陈云","C．周恩来","D．刘少奇"]},
+    {type:'S', q:"过渡时期总路线的主体是：", a:"A", os:["A．国家的社会主义工业化","B．私营经济国有化","C．个体农业集体化","D．三大改造"]},
+    {type:'S', q:"对个体农业和手工业实行社会主义改造的方针是：", a:"C", os:["A．趁热打铁，积极领导","B．自愿互利，国家帮助","C．积极领导，稳步前进","D．国家帮助，典型示范"]},
+    {type:'S', q:"《论十大关系》的报告围绕的基本方针是（重复）：", a:"C", os:["A．独立自主","B．自力更生","C．调动一切积极因素","D．走中国特色道路"]},
+    {type:'S', q:"社会主义社会的基本矛盾是（毛泽东）：", a:"B", os:["A. 人民内部矛盾","B. 生产关系和生产力之间、上层建筑和经济基础之间的矛盾","C. 阶级矛盾","D. 需求与生产矛盾"]},
+    {type:'S', q:"解决思想政治领域的矛盾应坚持的方针是：", a:"B", os:["A. 百家争鸣","B. 团结-批评-团结","C. 文化交流","D. 异域文化碰撞"]},
+    {type:'S', q:"中国特色社会主义理论体系不包括：", a:"A", os:["A．毛泽东思想","B．邓小平理论","C．三个代表","D．习近平思想"]},
+    {type:'S', q:"正式提出“邓小平理论”这一概念是在：", a:"C", os:["A．十三大","B．十四大","C．十五大","D．十六大"]},
+    {type:'S', q:"毛泽东系统论述社会主义社会矛盾理论的著作是：", a:"A", os:["A．《关于正确处理人民内部矛盾的问题》","B．《新民主主义论》","C．《论十大关系》","D．《中国社会各阶级分析》"]},
+    {type:'S', q:"社会主义建设道路初步探索时期，解决人民内部矛盾的总方针是：", a:"C", os:["A．采用专政和民主两种方法","B．“团结—批评—团结”","C．用民主的方法","D．用专政的方法"]},
+    {type:'S', q:"初步探索时期，提出发展商品生产、利用价值规律思想的是：", a:"A", os:["A．毛泽东","B．刘少奇","C．陈云","D．邓小平"]},
+    {type:'S', q:"走中国工业化道路的关键问题是：", a:"A", os:["A. 正确处理重工业和轻工业、农业的关系","B. 处理人民内部矛盾","C. 处理两类不同性质矛盾","D. 调动一切积极因素"]},
+    {type:'S', q:"邓小平理论首要的基本的理论问题是：", a:"A", os:["A．什么是社会主义，怎样建设社会主义","B．建设什么样的党","C．实现什么样的发展","D．坚持发展什么样的中特"]},
+    {type:'S', q:"系统地阐述了社会主义初级阶段的科学内涵是在：", a:"C", os:["A．十一届三中全会","B．十二大","C．十三大","D．十四大"]},
+    {type:'S', q:"邓小平在南方谈话中再次明确了（ ）的观点。", a: "C", os: ["A. 解放思想","B. 初级阶段","C. 科学技术是第一生产力","D. 党的基本路线"]},
+    {type:'S', q:"江泽民指出，第一资源是：", a:"C", os:["A. 石油","B. 生态","C. 人才","D. 劳动力"]},
+    {type:'S', q:"科学发展观的根本方法是：", a:"B", os:["A．第一要义","B．统筹兼顾","C．以人为本","D．全面协调发展"]},
+    {type:'S', q:"解放思想、实事求是思想路线的重新确立是在：", a:"C", os:["A．十三大","B．十二大","C．十一届三中全会","D．十四大"]},
+    {type:'S', q:"把非公有制经济纳入社会主义初级阶段基本经济制度中，是因为它：", a:"B", os:["A．是社会主义性质","B．是社会主义经济的重要组成部分","C．是为社会主义服务","D．不占主体地位"]},
+    {type:'S', q:"“三个代表”重要思想创造性地回答了：", a:"C", os:["A. 马克思主义问题","B．什么是社会主义","C．建设什么样的党、怎样建设党","D．什么是小康"]},
+    {type:'S', q:"两次历史性飞跃产生的两大理论成果为：", a:"D", os:["A．毛泽东思想和邓小平理论","B．邓论和三个代表","C．三个代表和科学发展观","D．毛泽东思想和中国特色社会主义理论体系"]},
+    {type:'S', q:"我国走工业化道路的根本原因是：", a:"D", os:["A. 工业基础薄弱","B. 民族工业深厚","C. 党的政策","D. 实现民族独立和国家富强的内在要求"]},
+    {type:'S', q:"社会主义本质，最终达到：", a:"B", os:["A. 小康社会","B. 共同富裕","C. 现代化国家","D. 现代化强国"]},
+    {type:'S', q:"1980年5月，第一次提出“社会主义的本质”概念的是：", a:"B", os:["A. 毛泽东","B. 邓小平","C. 江泽民","D. 胡锦涛"]},
+    {type:'S', q:"当代中国基本国情的科学判断是：", a:"B", os:["A. 最大发展中国家","B. 正处于社会主义初级阶段","C. 进入新时代","D. 发达社会主义"]},
+    {type:'S', q:"科学发展观的第一要义是：", a:"D", os:["A. 以人为本","B. 稳定","C. 改革","D. 发展"]},
+    {type:'S', q:"根据邓小平理论，社会主义的根本任务是：", a:"B", os:["A．解放生产力","B．发展生产力","C．消灭剥削","D．最终实现共同富裕"]},
+    {type:'S', q:"“三个代表”中，生产力各要素中最活跃的因素是：", a:"C", os:["A．劳动资料","B．劳动对象","C．人","D．社会关系"]},
+    {type:'S', q:"（ ）是经济工作和其他一切工作的生命线，是政治优势。", a:"C", os:["A．经济工作","B．意识形态","C．思想政治工作","D．群众路线"]},
+    {type:'S', q:"科学发展观的核心立场是：", a:"B", os:["A．推动发展","B．以人为本","C．全面协调可持续","D．统筹兼顾"]},
+    {type:'S', q:"科学发展观的基本要求是：", a:"C", os:["A．推动发展","B．以人为本","C．全面协调可持续","D．统筹兼顾"]},
+
+    // 多选题 1-40 
+    {type:'M', q:"新民主主义革命的对象是：", a:"ABC", os:["A. 帝国主义","B. 封建主义","C. 官僚资本主义","D. 民族资产阶级"]},
+    {type:'M', q:"新民主主义革命的三大法宝是：", a:"ABC", os:["A. 武装斗争","B. 统一战线","C. 党的建设","D. 群众路线"]},
+    {type:'M', q:"农业社会主义改造经历的阶段：", a:"ABD", os:["A．互助组","B．初级社","C．中级社","D．高级社"]},
+    {type:'M', q:"初步探索中取得的重要理论成果包括：", a:"ABC", os:["A．调动一切积极因素","B．正确处理社会矛盾","C．走中国工业化道路","D．走中国特色道路"]},
+    {type:'M', q:"属于《论十大关系》讨论范畴的是：", a:"BCD", os:["A. 市场与计划经济","B. 重轻农关系","C. 国家单位个人关系","D. 革命与反革命关系"]},
+    {type:'M', q:"毛泽东思想活的灵魂的基本方面是：", a:"ACD", os:["A. 实事求是","B. 艰苦奋斗","C. 独立自主","D. 群众路线"]},
+    {type:'M', q:"毛泽东思想内容还包括：", a:"ABCD", os:["A．革命建设理论","B．军事战略理论","C．思想文化工作","D．政策策略理论"]},
+    {type:'M', q:"坚持从实际出发就要：", a:"ABCD", os:["A．尊重事实","B．全面看问题","C．发展看问题","D．揭示本质"]},
+    {type:'M', q:"近代中国社会的主要矛盾是：", a:"AB", os:["A．帝国主义和中华民族矛盾","B．封建主义和人民大众矛盾","C．无产资产矛盾","D．地主农民矛盾"]},
+    {type:'M', q:"红色政权能够存在的原因：", a:"ABCD", os:["A．革命形势发展","B．红军存在","C．党的领导","D．不平衡的大国"]},
+    {type:'M', q:"毛泽东思想活的灵魂：", a:"ABC", os:["A. 实事求是","B. 群众路线","C. 独立自主","D. 解放思想"]},
+    {type:'M', q:"新民主主义革命的动力：", a:"ABCD", os:["A. 无产阶级","B. 农民阶级","C. 城市小资产阶级","D. 民族资产阶级"]},
+    {type:'M', q:"新民主主义革命三大法宝（重复）：", a:"ABC", os:["A. 武装斗争","B. 统一战线","C. 党的建设","D. 群众路线"]},
+    {type:'M', q:"新民主主义社会五种经济成分：", a:"ABCDE", os:["A. 国营","B. 合作社","C. 个体","D. 私人资本","E. 国家资本主义"]},
+    {type:'M', q:"和平赎买利于：", a:"ABCD", os:["A．发挥积极作用","B．团结各党派","C．发挥人才专长","D．争取知识分子"]},
+    {type:'M', q:"属于思想路线内容：", a:"ABCD", os:["A．一切从实际出发","B．理论联系实际","C．实事求是","D. 实践检验发展真理"]},
+    {type:'M', q:"邓小平对思想路线的主要贡献：", a:"ACD", os:["A．重新确立","B．首次界定科学含义","C．准确完整表述","D．进一步丰富"]},
+    {type:'M', q:"中国革命对象：", a:"BCD", os:["A．民族资产阶级","B．帝国主义","C．封建主义","D．官僚资本主义"]},
+    {type:'M', q:"中国革命战胜敌人的三个法宝：", a:"ABC", os:["A．统一战线","B．武装斗争","C．党的建设","D．群众路线"]},
+    {type:'M', q:"“两头小中间大”中两头指：", a:"AB", os:["A．无产阶级","B．大地主大资产阶级","C．农民","D．城市小资产阶级"]},
+    {type:'M', q:"邓小平理论精髓：", a:"AD", os:["A. 实事求是","B. 群众路线","C. 独立自主","D. 解放思想"]},
+    {type:'M', q:"基本路线中实现目标的途径：", a:"BCD", os:["A．领导团结人民","B．以经济建设为中心","C．坚持四项原则","D．坚持改革开放"]},
+    {type:'M', q:"“两手抓”包括：", a:"ABD", os:["A．物质精神文明","B．建设法制","C．市场计划","D．改革惩治腐败"]},
+    {type:'M', q:"中特理论体系包括：", a:"ABCD", os:["A. 邓论","B. 三代","C. 科学发展观","D. 习思想"]},
+    {type:'M', q:"习思想回答了：", a:"ABC", os:["A. 坚持发展什么样的中特","B. 什么样的强国","C. 什么样的执政党","D. 人类发展"]},
+    {type:'M', q:"毛泽东形成的群众路线：", a:"ABCD", os:["A．一切为了群众","B．一切依靠群众","C．到群众中去","D．从群众中来"]},
+    {type:'M', q:"处理国家关系原则：", a:"ABCDE", os:["A. 尊重主权","B. 互不侵犯","C. 不干涉内政","D. 平等互利","E. 和平共处"]},
+    {type:'M', q:"“一国两制”关系：", a:"ABCD", os:["A．前提是一国","B．中央与地方关系","C．必然要求","D．利于统一"]},
+    {type:'M', q:"中特政治制度：", a:"ABCD", os:["A．人民民主专政","B．人大制度","C．民族区域自治","D．多党合作"]},
+    {type:'M', q:"文化建设指导方针：", a:"ABCD", os:["A. 为人民服务","B. 双百方针","C. 古为今用洋为中用","D. 剔除糟粕"]},
+    {type:'M', q:"实现工业化方针：", a:"ABC", os:["A. 两条腿走路","B. 农轻重为序","C. 中央地方并举","D. 利益兼顾"]},
+    {type:'M', q:"初步探索重要理论成果：", a:"ABC", os:["A．调动积极因素","B．处理矛盾","C．走工业化道路","D．走中特道路"]},
+    {type:'M', q:"三步走战略：", a:"ABC", os:["A．1990翻番温饱","B．20世纪末小康","C．21世纪中叶中等发达","D．建党百年目标"]},
+    {type:'M', q:"中特理论体系包括（重复）：", a:"ABCD", os:["A. 邓论","B. 三代","C. 科学发展观","D. 习思想"]},
+    {type:'M', q:"习思想回答重大时代课题（重复）：", a:"ABC", os:["A. 什么样的中特","B. 什么样的强国","C. 什么样的执政党","D. 人类发展"]},
+    {type:'M', q:"中华人民共和国成立标志：", a:"ACD", os:["A．进入新民主主义社会","B．进入社会主义社会","C．革命基本胜利","D．半殖旧社会结束"]},
+    {type:'M', q:"50年代农业改造原则：", a:"BCD", os:["A. 和平赎买","B．自愿互利","C．典型示范","D．国家帮助"]},
+    {type:'M', q:"“四马分肥”指：", a:"ABCD", os:["A．工人福利费","B．企业公积金","C．资方红利","D．国家所得税"]},
+    {type:'M', q:"我国对外开放是：", a:"ABCD", os:["A. 基本国策","B. 全方位","C. 多层次","D. 宽领域"]},
+    {type:'M', q:"判断改革是非得失标准：", a:"ACD", os:["A．生产力发展","B．安定团结","C．综合国力","D．生活水平"]},
+
+    // 判断题 1-60 
+    {type:'J', q:"毛泽东思想活的灵魂不包括统一战线。", a:"T"},
+    {type:'J', q:"毛泽东思想萌芽于国民革命时期。", a:"T"},
+    {type:'J', q:"三大法宝是统一战线、武装斗争、党的建设。", a:"T"},
+    {type:'J', q:"新民主主义社会是一个过渡性质的社会形态。", a:"T"},
+    {type:'J', q:"建国初我国人民民主专政属于新民主主义政权性质。", a:"F"},
+    {type:'J', q:"毛泽东思想活的灵魂不包括党的建设。", a:"T"},
+    {type:'J', q:"《论十大关系》方针是调动积极因素为建设服务。", a:"T"},
+    {type:'J', q:"“三个代表”是立党之本、执政之基、力量之源。", a:"T"},
+    {type:'J', q:"发展观的第一要义是科教兴国。", a:"F"},
+    {type:'J', q:"七大确立了实事求是思想路线。", a:"T"},
+    {type:'J', q:"最早提出“马克思主义中国化”的是毛泽东。", a:"T"},
+    {type:'J', q:"毛泽东思想是第一次历史性飞跃成果。", a:"T"},
+    {type:'J', q:"新民主主义革命性质是资产阶级民主主义革命。", a:"T"},
+    {type:'J', q:"毛泽东思想是中国特色社会主义理论体系组成部分。", a:"F"},
+    {type:'J', q:"五四运动标志我国进入新民主主义社会。", a:"F"},
+    {type:'J', q:"保护民族资本主义是新民主主义经济纲领特色。", a:"T"},
+    {type:'J', q:"应走先机械化后合作化道路。", a:"F"},
+    {type:'J', q:"中国只能由新向社转变而非由资向社转变。", a:"T"},
+    {type:'J', q:"无产阶级最可靠同盟军是农民。", a:"T"},
+    {type:'J', q:"新旧民主革命区别在于领导权。", a:"T"},
+    {type:'J', q:"新民主主义政体是政治协商制度。", a:"F"},
+    {type:'J', q:"毛泽东提出发展商品生产利用价值规律。", a:"T"},
+    {type:'J', q:"坚持实事求是就要推进理论创新。", a:"T"},
+    {type:'J', q:"新民主主义政权以工农联盟为基础。", a:"T"},
+    {type:'J', q:"新中国成立标志进入新民主主义社会。", a:"T"},
+    {type:'J', q:"初级阶段是任何国家进入社都会经历的。", a:"F"},
+    {type:'J', q:"改造取得了胜利，没有出现失误。", a:"F"},
+    {type:'J', q:"建国实现了从新民主主义向社会主义转变。", a:"F"},
+    {type:'J', q:"十二大提出走自己的路，建设有中特。", a:"T"},
+    {type:'J', q:"发挥市场机制作用是社市经本质要求。", a:"T"},
+    {type:'J', q:"对外开放是全方位、多层次、宽领域。", a:"T"},
+    {type:'J', q:"改革是制度自我完善和发展。", a:"T"},
+    {type:'J', q:"非公有制经济是重要组成部分。", a:"T"},
+    {type:'J', q:"多党合作制度是执政前提下合作。", a:"T"},
+    {type:'J', q:"加强思想道德建设是文化建设中心环节。", a:"T"},
+    {type:'J', q:"中特理论体系是第二次飞跃成果。", a:"T"},
+    {type:'J', q:"新时期党面临的主要任务是探索正确道路。", a:"T"},
+    {type:'J', q:"邓小平理论精髓是解放思想实事求是。", a:"T"},
+    {type:'J', q:"南方谈话后理论继续丰富发展。", a:"T"},
+    {type:'J', q:"邓论时代背景是和平与发展。", a:"T"},
+    {type:'J', q:"三大改造完成标志社制度全面确立。", a:"T"},
+    {type:'J', q:"社会主义本质论是邓论核心内容。", a:"T"},
+    {type:'J', q:"社会主义根本任务是发展生产力。", a:"T"},
+    {type:'J', q:"平均主义不是社会主义。", a:"T"},
+    {type:'J', q:"最大的实际是初级阶段。", a:"T"},
+    {type:'J', q:"初级阶段是当代中国基本国情科学判断。", a:"T"},
+    {type:'J', q:"对外开放是一项长期基本国策。", a:"T"},
+    {type:'J', q:"改革是全面的改革。", a:"T"},
+    {type:'J', q:"政治体制改革是制度自我完善。", a:"T"},
+    {type:'J', q:"社民本质和核心是人民当家作主。", a:"T"},
+    {type:'J', q:"文化建设要把主旋律多样化统一起来。", a:"T"},
+    {type:'J', q:"“一国两制”不改变国家性质。", a:"T"},
+    {type:'J', q:"和平共处五项原则可处理内政问题。", a:"F"},
+    {type:'J', q:"邓论产生的背景是和平与发展（重复）。", a:"T"},
+    {type:'J', q:"中国的发展离不开世界。", a:"T"},
+    {type:'J', q:"(补足)实事求是是毛泽东思想精髓。", a:"T"},
+    {type:'J', q:"(补足)群众路线是党的根本工作路线。", a:"T"},
+    {type:'J', q:"(补足)独立自主是立党立国基本原则。", a:"T"},
+    {type:'J', q:"(补足)全心全意为人民服务是军队唯一宗旨。", a:"T"},
+    {type:'J', q:"(补足)中国共产党是中国工人阶级先锋队。", a:"T"}
+];
+
+// 简答论述题数据 
+const essays = [
+    {t: "简答题", list: ["毛泽东思想的主要内容?","社会主义的本质？","新民主主义革命总路线的内容？","社会主义初级阶段这个论断包含哪两层含义？","新民主主义革命的政治纲领？","党对社会主义建设道路初步探索的重大意义?","党在过渡时期总路线的主要内容？","“一国两制”主要内容？"]},
+    {t: "论述题", list: ["论述走中国工业化道路思想的内涵和意义。","“实事求是”的内涵？论述大学生如何做到实事求是？","论述中国革命走农村包围城市、武装夺取政权道路的必要性。","社会主义制度在中国确立的重大意义是什么？结合实际谈社会主义制度的优越性。"]}
+];
+
+// --- 逻辑控制 ---
+let displayData = [...questions];
+let wrongIds = JSON.parse(localStorage.getItem('moga_wrongs')) || [];
+let stats = { total: 0, correct: 0, error: 0 };
+
+function render() {
+    const list = document.getElementById('main-list');
+    list.innerHTML = '';
+    
+    let targetData = (currentMode === 'wrong') ? displayData.filter((_, i) => wrongIds.includes(i)) : displayData;
+    
+    if(targetData.length === 0 && currentMode === 'wrong') {
+        list.innerHTML = '<div class="card">错题本空空如也，继续加油！</div>';
+        return;
+    }
+
+    targetData.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const qIndex = displayData.indexOf(item); // 获取原始索引
+        
+        let badge = `<span class="badge ${item.type==='S'?'bg-s':(item.type==='M'?'bg-m':'bg-j')}">${item.type==='S'?'单选':(item.type==='M'?'多选':'判断')}</span>`;
+        
+        let optsHtml = '';
+        if(item.type === 'S' || item.type === 'J') {
+            const listArr = item.type === 'S' ? item.os : ["正确 (T)", "错误 (F)"];
+            optsHtml = listArr.map((o, i) => {
+                const key = item.type === 'S' ? o.charAt(0) : (i===0?'T':'F');
+                return `<div class="opt" onclick="checkInstant(this, ${qIndex}, '${key}', '${item.a}')">${o}</div>`;
+            }).join('');
+        } else {
+            optsHtml = item.os.map(o => `<div class="opt" onclick="this.classList.toggle('selected')">${o}</div>`).join('') + 
+                      `<button class="multi-btn" onclick="checkMulti(this, ${qIndex}, '${item.a}')">提交多选</button>`;
+        }
+
+        card.innerHTML = `<div class="q-text">${badge}${index+1}. ${item.q}</div>
+                          <div class="opts-box">${optsHtml}</div>
+                          <div class="ans-box" id="ans-${qIndex}">正确答案: ${item.a}</div>`;
+        list.appendChild(card);
+    });
+
+    // 顺序刷题模式下最后显示简答题
+    if(currentMode === 'all') {
+        const essayCard = document.createElement('div');
+        essayCard.className = 'card';
+        essayCard.innerHTML = `<h3>四、简答与论述题</h3>` + essays.map(e => `<h4>${e.t}</h4><ul>${e.list.map(li=>`<li>${li}</li>`).join('')}</ul>`).join('');
+        list.appendChild(essayCard);
+    }
+    updateWrongCount();
+}
+
+function checkInstant(el, idx, user, correct) {
+    const parent = el.parentElement;
+    if(parent.classList.contains('locked')) return;
+    parent.classList.add('locked');
+    
+    stats.total++;
+    if(user === correct) {
+        stats.correct++;
+        el.classList.add('correct');
+    } else {
+        stats.error++;
+        el.classList.add('wrong');
+        addWrong(idx);
+        // 显示正确项
+        Array.from(parent.children).forEach(c => {
+            if(isMatch(c.innerText, correct)) c.classList.add('correct');
+        });
+    }
+    document.getElementById(`ans-${idx}`).style.display = 'block';
+    updateStatsUI();
+}
+
+function checkMulti(btn, idx, correct) {
+    const parent = btn.parentElement;
+    if(parent.classList.contains('locked')) return;
+    
+    const selected = Array.from(parent.querySelectorAll('.opt.selected'));
+    if(selected.length === 0) return alert("请选择选项");
+    
+    parent.classList.add('locked');
+    stats.total++;
+    const user = selected.map(s => s.innerText.charAt(0)).sort().join('');
+    
+    if(user === correct) {
+        stats.correct++;
+        selected.forEach(s => s.classList.add('correct'));
+    } else {
+        stats.error++;
+        selected.forEach(s => s.classList.add('wrong'));
+        addWrong(idx);
+        Array.from(parent.querySelectorAll('.opt')).forEach(c => {
+            if(correct.includes(c.innerText.charAt(0))) c.classList.add('correct');
+        });
+    }
+    document.getElementById(`ans-${idx}`).style.display = 'block';
+    updateStatsUI();
+}
+
+function isMatch(text, a) {
+    return text.startsWith(a) || (a==='T' && text.includes('正确')) || (a==='F' && text.includes('错误'));
+}
+
+let currentMode = 'all';
+function changeMode(mode) {
+    currentMode = mode;
+    document.getElementById('mode-all').classList.toggle('active', mode==='all');
+    document.getElementById('mode-wrong').classList.toggle('active', mode==='wrong');
+    render();
+}
+
+function addWrong(idx) {
+    if(!wrongIds.includes(idx)) {
+        wrongIds.push(idx);
+        localStorage.setItem('moga_wrongs', JSON.stringify(wrongIds));
+        updateWrongCount();
+    }
+}
+
+function updateWrongCount() {
+    document.getElementById('wrong-count').innerText = wrongIds.length;
+}
+
+function updateStatsUI() {
+    document.getElementById('stat-total').innerText = stats.total;
+    document.getElementById('stat-correct').innerText = stats.correct;
+    document.getElementById('stat-error').innerText = stats.error;
+    document.getElementById('stat-ratio').innerText = Math.round((stats.correct/stats.total)*100) + "%";
+}
+
+function shuffleQuestions() {
+    displayData.sort(() => Math.random() - 0.5);
+    render();
+    window.scrollTo(0,0);
+}
+
+window.onload = render;
+</script>
+</body>
+</html>
