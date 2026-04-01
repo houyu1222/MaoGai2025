@@ -29,8 +29,8 @@ const textMargin: MarginOptions = { top: 60 };
 struct CounterButton {
   // 使用 @LocalStorageLink 实现与 LocalStorage 中 count 的双向同步
   @LocalStorageLink('count') count: number = 0;
-  @Require label: string = '';
-  @Require step: number = 0;
+  @Require label!: string;
+  @Require step!: number;
 
   build() {
     Button(this.label)
