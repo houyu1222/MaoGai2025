@@ -1,5 +1,23 @@
+interface CounterStorage {
+  count: number;
+}
+
+interface SpaceOptions {
+  space: number;
+}
+
+interface CounterButtonOptions {
+  label: string;
+  step: number;
+}
+
+interface MarginOptions {
+  top: number;
+}
+
 // 创建 LocalStorage 实例，并初始化计数器值为 0
-let storage: LocalStorage = new LocalStorage({ count: 0 });
+const counterStorage: CounterStorage = { count: 0 };
+let storage: LocalStorage = new LocalStorage(counterStorage);
 
 // 子组件：负责显示按钮并修改计数器的值
 @Component
@@ -28,15 +46,21 @@ struct CounterPage {
   @LocalStorageLink('count') count: number = 0;
 
   build() {
-    Column({ space: 30 }) {
+    const columnOptions: SpaceOptions = { space: 30 };
+    const rowOptions: SpaceOptions = { space: 20 };
+    const increaseOptions: CounterButtonOptions = { label: '增加', step: 1 };
+    const decreaseOptions: CounterButtonOptions = { label: '减少', step: -1 };
+    const textMargin: MarginOptions = { top: 60 };
+
+    Column(columnOptions) {
       Text(`${this.count}`)
         .fontSize(60)
         .fontWeight(FontWeight.Bold)
-        .margin({ top: 60 })
+        .margin(textMargin)
 
-      Row({ space: 20 }) {
-        CounterButton({ label: '增加', step: 1 })
-        CounterButton({ label: '减少', step: -1 })
+      Row(rowOptions) {
+        CounterButton(increaseOptions)
+        CounterButton(decreaseOptions)
       }
     }
     .width('100%')
