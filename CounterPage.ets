@@ -18,6 +18,11 @@ interface MarginOptions {
 // 创建 LocalStorage 实例，并初始化计数器值为 0
 const counterStorage: CounterStorage = { count: 0 };
 let storage: LocalStorage = new LocalStorage(counterStorage);
+const columnOptions: SpaceOptions = { space: 30 };
+const rowOptions: SpaceOptions = { space: 20 };
+const increaseOptions: CounterButtonOptions = { label: '增加', step: 1 };
+const decreaseOptions: CounterButtonOptions = { label: '减少', step: -1 };
+const textMargin: MarginOptions = { top: 60 };
 
 // 子组件：负责显示按钮并修改计数器的值
 @Component
@@ -46,12 +51,6 @@ struct CounterPage {
   @LocalStorageLink('count') count: number = 0;
 
   build() {
-    const columnOptions: SpaceOptions = { space: 30 };
-    const rowOptions: SpaceOptions = { space: 20 };
-    const increaseOptions: CounterButtonOptions = { label: '增加', step: 1 };
-    const decreaseOptions: CounterButtonOptions = { label: '减少', step: -1 };
-    const textMargin: MarginOptions = { top: 60 };
-
     Column(columnOptions) {
       Text(`${this.count}`)
         .fontSize(60)
